@@ -1,210 +1,207 @@
 import sys
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, to_date, year, month, dayofmonth
+from pyspark.sql.functions import (
+    col, to_date, year, month, dayofmonth, quarter,
+    date_format, dayofweek, weekofyear, coalesce
+)
+
+PG_URL = "jdbc:postgresql://postgres:5432/sales_db"
+PG_PROPS = {
+    "user": "admin",
+    "password": "admin",
+    "driver": "org.postgresql.Driver"
+}
+
 
 def build_dimensions(spark, df):
-    pg_url = "jdbc:postgresql://postgres:5432/sales_db"
-    pg_props = {
-        "user": "admin",
-        "password": "admin",
-        "driver": "org.postgresql.Driver"
-    }
-
-    # dim_customer
-    dim_customer = df.select(
-        col("sale_customer_id").alias("customer_id"),
-        col("customer_first_name").alias("first_name"),
-        col("customer_last_name").alias("last_name"),
-        col("customer_age").alias("age"),
-        col("customer_email").alias("email"),
-        col("customer_country").alias("country"),
-        col("customer_postal_code").alias("postal_code"),
-        col("customer_pet_type").alias("pet_type"),
-        col("customer_pet_name").alias("pet_name"),
-        col("customer_pet_breed").alias("pet_breed")
-    ).dropDuplicates(["customer_id"])
+    dim_customer = (
+        df.select(
+            col("sale_customer_id").alias("customer_id"),
+            col("customer_first_name").alias("first_name"),
+            col("customer_last_name").alias("last_name"),
+            col("customer_age").alias("age"),
+            col("customer_email").alias("email"),
+            col("customer_country").alias("country"),
+            col("customer_postal_code").alias("postal_code"),
+            col("customer_pet_type").alias("pet_type"),
+            col("customer_pet_name").alias("pet_name"),
+            col("customer_pet_breed").alias("pet_breed")
+        )
+        .dropDuplicates(["customer_id"])
+    )
 
     dim_customer.write \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_customer") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .mode("append") \
         .save()
-    print("Записано dim_customer (append).")
+    print(f"dim_customer: {dim_customer.count()} строк записано.")
 
-    # dim_product
-    dim_product = df.select(
-        col("sale_product_id").alias("product_id"),
-        col("product_name").alias("name"),
-        col("product_category").alias("category"),
-        col("product_price").alias("price"),
-        col("product_weight").alias("weight"),
-        col("product_color").alias("color"),
-        col("product_size").alias("size"),
-        col("product_brand").alias("brand"),
-        col("product_material").alias("material"),
-        col("product_rating").alias("rating"),
-        col("product_reviews").alias("reviews"),
-        col("supplier_name").alias("supplier_name")
-    ).dropDuplicates(["product_id"])
+    dim_product = (
+        df.select(
+            col("sale_product_id").alias("product_id"),
+            col("product_name").alias("name"),
+            col("product_category").alias("category"),
+            col("product_price").alias("price"),
+            col("product_weight").alias("weight"),
+            col("product_color").alias("color"),
+            col("product_size").alias("size"),
+            col("product_brand").alias("brand"),
+            col("product_material").alias("material"),
+            col("product_rating").alias("rating"),
+            col("product_reviews").alias("reviews"),
+            col("supplier_name").alias("supplier_name")
+        )
+        .dropDuplicates(["product_id"])
+    )
 
     dim_product.write \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_product") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .mode("append") \
         .save()
-    print("Записано dim_product (append).")
+    print(f"dim_product: {dim_product.count()} строк записано.")
 
-    # dim_store
-    dim_store = df.select(
-        col("store_name"),
-        col("store_location").alias("location"),
-        col("store_city").alias("city"),
-        col("store_state").alias("state"),
-        col("store_country").alias("country"),
-        col("store_phone").alias("phone"),
-        col("store_email").alias("email")
-    ).dropDuplicates(["store_name", "location", "city", "state", "country"])
+    dim_store = (
+        df.select(
+            col("store_name"),
+            col("store_location").alias("location"),
+            col("store_city").alias("city"),
+            col("store_state").alias("state"),
+            col("store_country").alias("country"),
+            col("store_phone").alias("phone"),
+            col("store_email").alias("email")
+        )
+        .dropDuplicates(["store_name", "location", "city", "state", "country"])
+    )
 
     dim_store.write \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_store") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .mode("append") \
         .save()
-    print("Записано dim_store (append).")
+    print(f"dim_store: {dim_store.count()} строк записано.")
 
-    # dim_supplier
-    dim_supplier = df.select(
-        col("supplier_name"),
-        col("supplier_contact").alias("contact"),
-        col("supplier_email").alias("email"),
-        col("supplier_phone").alias("phone"),
-        col("supplier_address").alias("address"),
-        col("supplier_city").alias("city"),
-        col("supplier_country").alias("country")
-    ).dropDuplicates([
-        "supplier_name", "contact", "email", "phone", "address", "city", "country"
-    ])
+    dim_supplier = (
+        df.select(
+            col("supplier_name"),
+            col("supplier_contact").alias("contact"),
+            col("supplier_email").alias("email"),
+            col("supplier_phone").alias("phone"),
+            col("supplier_address").alias("address"),
+            col("supplier_city").alias("city"),
+            col("supplier_country").alias("country")
+        )
+        .dropDuplicates([
+            "supplier_name", "contact", "email", "phone", "address", "city", "country"
+        ])
+    )
 
     dim_supplier.write \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_supplier") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .mode("append") \
         .save()
-    print("Записано dim_supplier (append).")
+    print(f"dim_supplier: {dim_supplier.count()} строк записано.")
 
-    # dim_date
-    dim_date = df.select(
-        col("sale_date_dt").alias("sale_date")
-    ).dropDuplicates(["sale_date"]).filter(col("sale_date").isNotNull()) \
-     .withColumn("year", year(col("sale_date"))) \
-     .withColumn("month", month(col("sale_date"))) \
-     .withColumn("day", dayofmonth(col("sale_date")))
+    dim_date_full = (
+        df.select(col("sale_date_dt").alias("sale_date"))
+        .filter(col("sale_date").isNotNull())
+        .distinct()
+        .withColumn("year", year(col("sale_date")))
+        .withColumn("month", month(col("sale_date")))
+        .withColumn("day", dayofmonth(col("sale_date")))
+    )
 
-    dim_date.write \
+    dim_date_for_pg = dim_date_full.select(
+        col("sale_date"),
+        col("year"),
+        col("month"),
+        col("day")
+    )
+
+    dim_date_for_pg.write \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_date") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .mode("append") \
         .save()
-    print("Записано dim_date (append).")
+    print(f"dim_date: {dim_date_for_pg.count()} строк записано.")
+
 
 def build_fact(spark, df):
-    """
-    Читает dim_* из PostgreSQL, получает surrogate-ключи,
-    затем строит и записывает fact_sales.
-    """
-    pg_url = "jdbc:postgresql://postgres:5432/sales_db"
-    pg_props = {
-        "user": "admin",
-        "password": "admin",
-        "driver": "org.postgresql.Driver"
-    }
-
     dim_customer_pd = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_customer") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
     dim_product_pd = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_product") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
     dim_store_pd = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_store") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
     dim_supplier_pd = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_supplier") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
     dim_date_pd = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_date") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
+    existing_fact_ids = spark.read \
+        .format("jdbc") \
+        .option("url", PG_URL) \
+        .option("dbtable", "star_schema.fact_sales") \
+        .options(**PG_PROPS) \
+        .load() \
+        .select("sale_id")
 
-    fact_df = df.join(
+    fact_candidates = df.join(
         dim_customer_pd.select("customer_key", "customer_id"),
         df.sale_customer_id == dim_customer_pd.customer_id,
         "inner"
     ).drop(dim_customer_pd.customer_id)
 
-    fact_df = fact_df.join(
+    fact_candidates = fact_candidates.join(
         dim_product_pd.select("product_key", "product_id"),
-        fact_df.sale_product_id == dim_product_pd.product_id,
+        fact_candidates.sale_product_id == dim_product_pd.product_id,
         "inner"
     ).drop(dim_product_pd.product_id)
 
-    fact_df = fact_df.join(
+    fact_candidates = fact_candidates.join(
         dim_store_pd.select("store_key", "store_name", "location", "city", "state", "country"),
         [
-            fact_df.store_name == dim_store_pd.store_name,
-            fact_df.store_location == dim_store_pd.location,
-            fact_df.store_city == dim_store_pd.city,
-            fact_df.store_state == dim_store_pd.state,
-            fact_df.store_country == dim_store_pd.country
+            fact_candidates.store_name == dim_store_pd.store_name,
+            fact_candidates.store_location == dim_store_pd.location,
+            fact_candidates.store_city == dim_store_pd.city,
+            fact_candidates.store_state == dim_store_pd.state,
+            fact_candidates.store_country == dim_store_pd.country
         ],
         "inner"
     ).drop(
@@ -212,23 +209,25 @@ def build_fact(spark, df):
         dim_store_pd.city, dim_store_pd.state, dim_store_pd.country
     )
 
-    fact_df = fact_df.join(
+    fact_candidates = fact_candidates.join(
         dim_supplier_pd.select("supplier_key", "supplier_name", "city", "country"),
         [
-            fact_df.supplier_name == dim_supplier_pd.supplier_name,
-            fact_df.supplier_city == dim_supplier_pd.city,
-            fact_df.supplier_country == dim_supplier_pd.country
+            fact_candidates.supplier_name == dim_supplier_pd.supplier_name,
+            fact_candidates.supplier_city == dim_supplier_pd.city,
+            fact_candidates.supplier_country == dim_supplier_pd.country
         ],
         "inner"
-    ).drop(dim_supplier_pd.supplier_name, dim_supplier_pd.city, dim_supplier_pd.country)
+    ).drop(
+        dim_supplier_pd.supplier_name, dim_supplier_pd.city, dim_supplier_pd.country
+    )
 
-    fact_df = fact_df.join(
+    fact_candidates = fact_candidates.join(
         dim_date_pd.select("date_key", "sale_date"),
-        fact_df.sale_date_dt == dim_date_pd.sale_date,
+        fact_candidates.sale_date_dt == dim_date_pd.sale_date,
         "inner"
     ).drop(dim_date_pd.sale_date)
 
-    fact_sales = fact_df.select(
+    fact_full = fact_candidates.select(
         col("id").alias("sale_id"),
         col("customer_key"),
         col("product_key"),
@@ -237,48 +236,55 @@ def build_fact(spark, df):
         col("date_key"),
         col("sale_quantity").alias("quantity"),
         col("sale_total_price").alias("total_price")
+    ).dropDuplicates(["sale_id"])
+
+    fact_to_insert = fact_full.join(
+        existing_fact_ids,
+        on="sale_id",
+        how="left_anti"
     )
 
-    # Запись fact_sales (append)
-    fact_sales.write \
-        .format("jdbc") \
-        .option("url", pg_url) \
-        .option("dbtable", "star_schema.fact_sales") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
-        .mode("append") \
-        .save()
-    print("fact_sales записана (append).")
+    count_new = fact_to_insert.count()
+    if count_new > 0:
+        fact_to_insert.write \
+            .format("jdbc") \
+            .option("url", PG_URL) \
+            .option("dbtable", "star_schema.fact_sales") \
+            .options(**PG_PROPS) \
+            .mode("append") \
+            .save()
+        print(f"Новых строк в fact_sales записано: {count_new}")
+    else:
+        print("Новые строки в fact_sales не найдены. Запись пропущена.")
+
 
 def main():
     spark = SparkSession.builder \
         .appName("ETL_Postgres_Star") \
         .getOrCreate()
 
-    pg_url = "jdbc:postgresql://postgres:5432/sales_db"
-    pg_props = {
-        "user": "admin",
-        "password": "admin",
-        "driver": "org.postgresql.Driver"
-    }
-
     raw_df = spark.read \
         .format("jdbc") \
-        .option("url", pg_url) \
+        .option("url", PG_URL) \
         .option("dbtable", "public.mock_data") \
-        .option("user", pg_props["user"]) \
-        .option("password", pg_props["password"]) \
-        .option("driver", pg_props["driver"]) \
+        .options(**PG_PROPS) \
         .load()
 
-    df = raw_df.withColumn("sale_date_dt", to_date(col("sale_date"), "yyyy-MM-dd"))
+    df = raw_df.withColumn(
+        "sale_date_dt",
+        coalesce(
+            to_date(col("sale_date"), "M/d/yyyy"),
+            to_date(col("sale_date"), "yyyy-MM-dd")
+        )
+    )
 
     build_dimensions(spark, df)
 
     build_fact(spark, df)
 
-    print("ETL завершён успешно. SparkContext останется открытым до выхода процесса.")
+    spark.stop()
+    print("ETL завершён успешно.")
+
 
 if __name__ == "__main__":
     main()

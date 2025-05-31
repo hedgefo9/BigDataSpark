@@ -78,7 +78,7 @@ def read_star_schema_from_postgres(spark):
     }
 
 def write_to_clickhouse(df, table_name, order_by):
-    ch_url = "jdbc:clickhouse://clickhouse:8123/reports"
+    ch_url = "jdbc:clickhouse://clickhouse:8123/default"
     ch_props = {
         "user": "admin",
         "password": "admin",
