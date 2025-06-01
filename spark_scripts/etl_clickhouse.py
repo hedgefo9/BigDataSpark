@@ -197,27 +197,27 @@ def main():
     dim_date = tables["dim_date"]
     fact_sales = tables["fact_sales"]
 
-    # 1. Репорт: продукты (ORDER BY product_id)
+    # 1. Отчёт: продукты (ORDER BY product_id)
     products_df = build_report_products(dim_product, fact_sales)
     write_to_clickhouse(products_df, "report_products", "product_id")
 
-    # 2. Репорт: клиенты (ORDER BY customer_id)
+    # 2. Отчёт: клиенты (ORDER BY customer_id)
     customers_df = build_report_customers(dim_customer, fact_sales)
     write_to_clickhouse(customers_df, "report_customers", "customer_id")
 
-    # 3. Репорт: время (ORDER BY (year, month))
+    # 3. Отчёт: время (ORDER BY (year, month))
     time_df = build_report_time(dim_date, fact_sales)
     write_to_clickhouse(time_df, "report_time", "(year, month)")
 
-    # 4. Репорт: магазины (ORDER BY store_key)
+    # 4. Отчёт: магазины (ORDER BY store_key)
     stores_df = build_report_stores(dim_store, fact_sales)
     write_to_clickhouse(stores_df, "report_stores", "store_key")
 
-    # 5. Репорт: поставщики (ORDER BY supplier_key)
+    # 5. Отчёт: поставщики (ORDER BY supplier_key)
     suppliers_df = build_report_suppliers(dim_supplier, fact_sales, dim_product)
     write_to_clickhouse(suppliers_df, "report_suppliers", "supplier_key")
 
-    # 6. Репорт: качество продукции (ORDER BY product_id)
+    # 6. Отчёт: качество продукции (ORDER BY product_id)
     quality_df = build_report_quality(dim_product, fact_sales)
     write_to_clickhouse(quality_df, "report_quality", "product_id")
 

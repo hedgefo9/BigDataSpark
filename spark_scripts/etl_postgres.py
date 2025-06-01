@@ -112,6 +112,27 @@ def build_dimensions(spark, df):
         .save()
     print(f"dim_supplier: {dim_supplier.count()} строк записано.")
 
+    dim_seller = (
+        df.select(
+            col("sale_seller_id").alias("seller_id"),
+            col("seller_first_name").alias("first_name"),
+            col("seller_last_name").alias("last_name"),
+            col("seller_email").alias("email"),
+            col("seller_country").alias("country"),
+            col("seller_postal_code").alias("postal_code")
+        )
+        .dropDuplicates(["seller_id"])
+    )
+
+    dim_seller.write \
+        .format("jdbc") \
+        .option("url", PG_URL) \
+        .option("dbtable", "star_schema.dim_seller") \
+        .options(**PG_PROPS) \
+        .mode("append") \
+        .save()
+    print(f"dim_seller: {dim_seller.count()} строк записано.")
+
     dim_date_full = (
         df.select(col("sale_date_dt").alias("sale_date"))
         .filter(col("sale_date").isNotNull())
@@ -164,6 +185,13 @@ def build_fact(spark, df):
         .format("jdbc") \
         .option("url", PG_URL) \
         .option("dbtable", "star_schema.dim_supplier") \
+        .options(**PG_PROPS) \
+        .load()
+
+    dim_seller_pd = spark.read \
+        .format("jdbc") \
+        .option("url", PG_URL) \
+        .option("dbtable", "star_schema.dim_seller") \
         .options(**PG_PROPS) \
         .load()
 
@@ -222,6 +250,12 @@ def build_fact(spark, df):
     )
 
     fact_candidates = fact_candidates.join(
+        dim_seller_pd.select("seller_key", "seller_id"),
+        fact_candidates.sale_seller_id == dim_seller_pd.seller_id,
+        "inner"
+    ).drop(dim_seller_pd.seller_id)
+
+    fact_candidates = fact_candidates.join(
         dim_date_pd.select("date_key", "sale_date"),
         fact_candidates.sale_date_dt == dim_date_pd.sale_date,
         "inner"
@@ -230,6 +264,7 @@ def build_fact(spark, df):
     fact_full = fact_candidates.select(
         col("id").alias("sale_id"),
         col("customer_key"),
+        col("seller_key"),
         col("product_key"),
         col("store_key"),
         col("supplier_key"),

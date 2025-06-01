@@ -19,7 +19,7 @@ CREATE TABLE mock_data (
     product_category TEXT,
     product_price NUMERIC,
     product_quantity INTEGER,
-    sale_date TEXT,  -- Временное хранение как TEXT для гибкости
+    sale_date TEXT,
     sale_customer_id BIGINT,
     sale_seller_id BIGINT,
     sale_product_id BIGINT,
@@ -82,6 +82,16 @@ CREATE TABLE IF NOT EXISTS star_schema.dim_customer (
     pet_breed TEXT
 );
 
+CREATE TABLE IF NOT EXISTS star_schema.dim_seller (
+    seller_key    SERIAL PRIMARY KEY,
+    seller_id     BIGINT,
+    first_name    TEXT,
+    last_name     TEXT,
+    email         TEXT,
+    country       TEXT,
+    postal_code   TEXT
+);
+
 CREATE TABLE IF NOT EXISTS star_schema.dim_product (
     product_key SERIAL PRIMARY KEY,
     product_id BIGINT,
@@ -132,6 +142,7 @@ CREATE TABLE IF NOT EXISTS star_schema.dim_date (
 CREATE TABLE IF NOT EXISTS star_schema.fact_sales (
     sale_id BIGINT PRIMARY KEY,
     customer_key INTEGER REFERENCES star_schema.dim_customer(customer_key),
+    seller_key INTEGER REFERENCES star_schema.dim_seller(seller_key),
     product_key INTEGER REFERENCES star_schema.dim_product(product_key),
     store_key INTEGER REFERENCES star_schema.dim_store(store_key),
     supplier_key INTEGER REFERENCES star_schema.dim_supplier(supplier_key),
